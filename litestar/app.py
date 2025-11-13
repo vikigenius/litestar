@@ -398,7 +398,6 @@ class Litestar(Router):
         for handler in chain(
             on_app_init or [],
             (p.on_app_init for p in config.plugins if isinstance(p, InitPluginProtocol)),
-            [self._patch_opentelemetry_middleware],
         ):
             config = handler(config)  # pyright: ignore
 
@@ -509,23 +508,6 @@ class Litestar(Router):
             self.logger = self.get_logger("litestar")
 
         self.asgi_handler = self._create_asgi_handler()
-
-    @staticmethod
-    def _patch_opentelemetry_middleware(config: AppConfig) -> AppConfig:
-        # workaround to support otel middleware priority. Should be replaced by regular
-        # middleware priorities once available
-        try:
-            from litestar.contrib.opentelemetry import OpenTelemetryPlugin
-
-            if not any(isinstance(p, OpenTelemetryPlugin) for p in config.plugins):
-                config.middleware, otel_middleware = OpenTelemetryPlugin._pop_otel_middleware(config.middleware)
-                if otel_middleware:
-                    otel_plugin = OpenTelemetryPlugin()
-                    otel_plugin._middleware = otel_middleware
-                    config.plugins = [*config.plugins, otel_plugin]
-        except ImportError:
-            pass
-        return config
 
     @staticmethod
     def _get_default_plugins(plugins: list[PluginProtocol]) -> list[PluginProtocol]:
@@ -969,7 +951,6 @@ class Litestar(Router):
             asgi_handler = otel_plugin.middleware(app=asgi_handler)
         except KeyError:
             pass
-
         return asgi_handler
 
     def _wrap_send(self, send: Send, scope: Scope) -> Send:

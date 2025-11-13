@@ -9,6 +9,7 @@ from litestar.contrib.opentelemetry.middleware import (
 )
 from litestar.exceptions import MissingDependencyException
 from litestar.middleware.base import DefineMiddleware
+from litestar.utils import warn_deprecation
 
 __all__ = ("OpenTelemetryConfig",)
 
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
 
     from litestar.types import Scope, Scopes
 
-OpenTelemetryHookHandler = Callable[[Span, dict], None]
+OpenTelemetryHookHandler = Callable[[Span, dict, dict], None]
 
 
 @dataclass
@@ -67,7 +68,7 @@ class OpenTelemetryConfig:
 
     If omitted the provided meter provider or the global one will be used.
     """
-    exclude: str | list[str] | None = field(default=None)
+    exclude: str | tuple[str, ...] | None = field(default=None)
     """A pattern or list of patterns to skip in the Allowed Hosts middleware."""
     exclude_opt_key: str | None = field(default=None)
     """An identifier to use on routes to disable hosts check for a particular route."""
@@ -89,14 +90,12 @@ class OpenTelemetryConfig:
     """
 
     @property
-    def middleware(self) -> DefineMiddleware:
-        """Create an instance of :class:`DefineMiddleware <litestar.middleware.base.DefineMiddleware>` that wraps with.
-
-        [OpenTelemetry
-        InstrumentationMiddleware][litestar.contrib.opentelemetry.OpenTelemetryInstrumentationMiddleware] or a subclass
-        of this middleware.
-
-        Returns:
-            An instance of ``DefineMiddleware``.
-        """
-        return DefineMiddleware(self.middleware_class, config=self)
+    def middleware(self) -> OpenTelemetryInstrumentationMiddleware:
+        warn_deprecation(
+            deprecated_name="litestar.contrib.opentelemetry.config.OpenTelemetryConfig.Middleware",
+            version="3.0",
+            kind="property",
+            removal_in="4.0",
+            info="Configure your OpenTelemetryInstrumentationMiddleware using OpenTelemetryPlugin instead",
+        )
+        return self.middleware_class(self)
